@@ -1,0 +1,4 @@
+time stamp
+bool centerFound
+float64 distanceToCenter
+float64 angleToCenter
