@@ -10,6 +10,7 @@
 #include <math.h>
 #include <cassert>
 #include <fstream>
+#include <geometry_msgs/PoseStamped.h>
 
 
 #define FOCAL_LENGTH_IN_PIXELS 530.8560
@@ -21,49 +22,6 @@ double alpha_radius = 0.7;
 double alpha_center = 0.6;
 static const std::string OPENCV_WINDOW = "Image window";
 static const std::string GRAY_IMG_WINDOW = "GRAY IMAGE WINDOW";
-
-using namespace std;
-using namespace cv;
-
-// This video stablisation smooths the global trajectory using a sliding average window
-
-const int SMOOTHING_RADIUS = 30; // In frames. The larger the more stable the video, but less reactive to sudden panning
-const int HORIZONTAL_BORDER_CROP = 20; // In pixels. Crops the border to reduce the black borders from stabilisation being too noticeable.
-
-// 1. Get previous to current frame transformation (dx, dy, da) for all frames
-// 2. Accumulate the transformations to get the image trajectory
-// 3. Smooth out the trajectory using an averaging window
-// 4. Generate new set of previous to current transform, such that the trajectory ends up being the same as the smoothed trajectory
-// 5. Apply the new transformation to the video
-
-struct TransformParam
-{
-    TransformParam() {}
-    TransformParam(double _dx, double _dy, double _da) {
-        dx = _dx;
-        dy = _dy;
-        da = _da;
-    }
-
-    double dx;
-    double dy;
-    double da; // angle
-};
-
-struct Trajectory
-{
-    Trajectory() {}
-    Trajectory(double _x, double _y, double _a) {
-        x = _x;
-        y = _y;
-        a = _a;
-    }
-
-    double x;
-    double y;
-    double a; // angle
-};
-
 
 
 
@@ -86,11 +44,10 @@ public:
     image_sub_ = it_.subscribe("/camera/image_raw", 1,
       &ImageConverter::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
+    centerPublisher = nh_.advertise<geometry_msgs::PoseStamped>("/image_converter/image_feedback",1);
     acc_radius = 47;
     acc_center_y = 300;
     acc_center_x = 500;
-    cv::namedWindow(GRAY_IMG_WINDOW);
-    cv::namedWindow(OPENCV_WINDOW);
   }
 
   ~ImageConverter()
@@ -111,70 +68,11 @@ public:
       return;
     }
 
-	// Convert to grayscale
-	/*cv::Mat gray;
-	cv::cvtColor(cv_ptr->image, gray, CV_BGR2GRAY);
-
-	// Use Canny instead of threshold to catch squares with gradient shading
-	cv::Mat bw;
-	//cv::Canny(gray, bw, 100, 300, 5);
-  cv::threshold(gray, bw, 70, 255,1);
-
-	// Find contours
-	std::vector<std::vector<cv::Point> > contours;
-	cv::findContours(bw.clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-
-	std::vector<cv::Point> approx;
-	cv::Mat dst = cv_ptr->image.clone();
-
-	for (int i = 0; i < contours.size(); i++)
-	{
-        int count = 0;
-		// Approximate contour with accuracy proportional
-		// to the contour perimeter
-		cv::approxPolyDP(cv::Mat(contours[i]), approx, cv::arcLength(cv::Mat(contours[i]), true)*0.02, true);
-
-		// Skip small or non-convex objects 
-		if (std::fabs(cv::contourArea(contours[i])) < 100 || !cv::isContourConvex(approx))
-			continue;
-
-		
-			// Detect and label circles
-			double area = cv::contourArea(contours[i]);
-			cv::Rect r = cv::boundingRect(contours[i]);
-			int radius = r.width / 2;
-      float test_radius;
-      cv::Point2f test_center;
-			if (std::abs(1 - ((double)r.width / r.height)) <= 0.2 &&
-			    std::abs(1 - (area / (CV_PI * std::pow(radius, 2)))) <= 0.2){
-                    test_center.x = r.x + (r.width/2);
-                    test_center.y = r.y + (r.height/2);
-                    cv::circle(cv_ptr->image, test_center,radius,cv::Scalar(255,0,0),2);
-                    count++;
-                    ROS_INFO("CIRCLE COUNT:%d",count);
-                }
-				
-		
-	}
-
-	cv::imshow(OPENCV_WINDOW, cv_ptr->image);
-	cv::imshow(GRAY_IMG_WINDOW, bw);
-  cv::waitKey(3);*/
-
-
-	// Check if the image can be loaded
-
-  Mat cur, cur_grey;
-  Mat prev, prev_grey;
-
-
-  cvtColor(prev, prev_grey, COLOR_BGR2GRAY);
-
-  std::vector <TransformParam> prev_to_cur_transform;
+    ROS_INFO("Starting");
+  
   double heightToObject;
   double horizontalDistanceToObject;
   double angleToObject;
-  cv::Mat backup_image = cv_ptr->image.clone();
   cv::medianBlur(cv_ptr->image,cv_ptr->image,11);
   cv::Mat hsv_image;
   cv::cvtColor(cv_ptr->image, hsv_image, cv::COLOR_BGR2HSV);
@@ -194,7 +92,7 @@ public:
 
   std::vector<cv::Vec3f> circles;
   cv::HoughCircles(red_hue_image, circles, CV_HOUGH_GRADIENT, 1, red_hue_image.rows/8, 200, 30, 0, 0);
-
+  //geometry_msgs::PoseStamped current_feedback;
   
  	for(size_t current_circle = 0; current_circle < circles.size(); ++current_circle) {
  		cv::Point curr_center(std::round(circles[current_circle][0]), std::round(circles[current_circle][1]));
@@ -212,11 +110,6 @@ public:
     angleToObject = atan2(heightToObject,horizontalDistanceToObject);
     //ROS_INFO("MESSAGE DATA:%f %f %f",heightToObject,horizontalDistanceToObject,angleToObject);
  	}
-
-  
-  cv::imshow(OPENCV_WINDOW,cv_ptr->image);
-  cv::imshow(GRAY_IMG_WINDOW,red_hue_image);
-  cv::waitKey(3);
 
     // Draw an example circle on the video stream
     /*if (cv_ptr->image.rows > 60 && cv_ptr->image.cols > 60)
