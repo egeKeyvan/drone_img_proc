@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   message_generation
+  geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -54,10 +55,10 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
- add_message_files(
-  FILES
-  LandTarget.msg
-)
+#add_message_files(
+#  FILES
+#  LandTarget.msg
+#)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -74,10 +75,10 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-)
+#generate_messages(
+#  DEPENDENCIES
+#  std_msgs
+#)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -109,10 +110,7 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
- INCLUDE_DIRS include
- LIBRARIES drone_img_proc
- CATKIN_DEPENDS cv_bridge image_transport roscpp rospy rospy sensor_msgs std_msgs message_runtime
- DEPENDS system_lib
+ CATKIN_DEPENDS cv_bridge image_transport roscpp rospy rospy sensor_msgs std_msgs geometry_msgs
 )
 
 ###########

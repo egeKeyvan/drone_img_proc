@@ -6,7 +6,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <vector>
-#include <drone_img_proc/LandTarget.h>
 #include <numeric>
 #include <math.h>
 #include <cassert>
@@ -87,7 +86,6 @@ public:
     image_sub_ = it_.subscribe("/camera/image_raw", 1,
       &ImageConverter::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
-    centerPublisher = nh_.advertise<drone_img_proc::LandTarget>("/image_converter/image_feedback",10);
     acc_radius = 47;
     acc_center_y = 300;
     acc_center_x = 500;
@@ -173,8 +171,6 @@ public:
   cvtColor(prev, prev_grey, COLOR_BGR2GRAY);
 
   std::vector <TransformParam> prev_to_cur_transform;
-
-  drone_img_proc::LandTarget nav_target;
   double heightToObject;
   double horizontalDistanceToObject;
   double angleToObject;
@@ -215,11 +211,6 @@ public:
     horizontalDistanceToObject = REAL_RADIUS * distanceToCenter / acc_radius;
     angleToObject = atan2(heightToObject,horizontalDistanceToObject);
     //ROS_INFO("MESSAGE DATA:%f %f %f",heightToObject,horizontalDistanceToObject,angleToObject);
-    nav_target.stamp = ros::Time::now();
-    nav_target.centerFound = true;
-    nav_target.distanceToCenter = std::sqrt(horizontalDistanceToObject * horizontalDistanceToObject + heightToObject * heightToObject);
-    nav_target.angleToCenter = angleToObject;
-    centerPublisher.publish(nav_target);  
  	}
 
   
